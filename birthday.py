@@ -1,4 +1,5 @@
 # streamlit_app.py
+# streamlit_app.py
 import streamlit as st
 import math
 import random
@@ -6,26 +7,26 @@ import io
 import time
 from PIL import Image, ImageDraw, ImageFont
 
-st.set_page_config(layout="centered", page_title="Birthday Heart Animation")
+st.set_page_config(layout="centered", page_title="Birthday Heart Animation (Streamlit)")
 
-# ---------- Default Parameters (tweak for performance) ----------
+# ---------- Config / defaults ----------
 W, H = 900, 700
-DEFAULT_FRAMES = 140          # total frames of GIF (smaller -> faster generation)
-HEART_STEPS = 400             # keeps the same paramization you used
-DEFAULT_HEART_PER_FRAME = 3   # how many heart steps to draw per frame
+DEFAULT_FRAMES = 140
+HEART_STEPS = 400
+DEFAULT_HEART_PER_FRAME = 3
 BG_COLOR = (0, 0, 0)
 TEXT_COLOR = (255, 255, 255)
 HEART_COLOR = (255, 40, 40)
-GIF_DURATION = 40             # ms per frame
+GIF_DURATION = 40  # ms per frame
 
-# ---------- Heart parametric functions (exact math you used) ----------
+# ---------- Heart math (same as your turtle functions) ----------
 def hearta(k):
     return 15 * math.sin(k) ** 3
 
 def heartb(k):
     return 12 * math.cos(k) - 5 * math.cos(2 * k) - 2 * math.cos(3 * k) - math.cos(4 * k)
 
-# ---------- Sidebar UI ----------
+# ---------- Sidebar controls ----------
 st.sidebar.header("Animation settings")
 frames_input = st.sidebar.slider("Frames (smaller = faster)", 40, 300, DEFAULT_FRAMES)
 heart_per_frame = st.sidebar.slider("Heart points per frame", 1, 8, DEFAULT_HEART_PER_FRAME)
@@ -35,7 +36,7 @@ use_uploaded_video = st.sidebar.checkbox("Show uploaded screen recording (if ava
 FRAMES = frames_input
 HEART_PER_FRAME = heart_per_frame
 
-# ---------- Prepare balloons and glitters ----------
+# ---------- Prepare balloons & glitters ----------
 NUM_BALLOONS = 8
 NUM_GLITTERS = 60
 
@@ -44,6 +45,7 @@ class Balloon:
         self.x = random.randint(50, W - 50)
         self.y = random.randint(H // 2 - 50, H - 40)
         self.size = random.randint(14, 28)
+        # pick RGB tuples (same palette as earlier)
         self.color = random.choice([
             (255, 107, 107),  # #FF6B6B
             (255, 217, 61),   # #FFD93D
@@ -77,8 +79,9 @@ except Exception:
     font_large = ImageFont.load_default()
     font_small = ImageFont.load_default()
 
-# ---------- Frame builder ----------
+# ---------- Frame renderer ----------
 def build_frames(frames=FRAMES, show_preview_only=False):
+    # precompute heart points (matching your original paramization)
     heart_coords = []
     for i in range(HEART_STEPS):
         k = i
@@ -97,7 +100,7 @@ def build_frames(frames=FRAMES, show_preview_only=False):
         im = Image.new("RGB", (W, H), BG_COLOR)
         draw = ImageDraw.Draw(im)
 
-        # draw balloons (background)
+        # draw balloons
         for b in balloons:
             bx, by = int(b.x), int(b.y)
             r = b.size
@@ -117,16 +120,24 @@ def build_frames(frames=FRAMES, show_preview_only=False):
             total_chars = len(full_text)
             visible_chars = int((f + 1) / text_frames * total_chars)
             visible = full_text[:visible_chars]
+
+            # compatible measurement using multiline_textbbox
             bbox = draw.multiline_textbbox((0, 0), visible, font=font_large, spacing=6)
             w = bbox[2] - bbox[0]
             h = bbox[3] - bbox[1]
-            draw.multiline_text(((W - w) / 2, (H / 2 - 40) - h / 2), visible,
-                                font=font_large, fill=TEXT_COLOR, align="center", spacing=6)
-        else:
-            draw.multiline_text(((W / 2) - 200, (H / 2 - 40) - 10), "Happy Birthday\nBestie ❤ 🎂",
-                                font=font_large, fill=TEXT_COLOR, align="center", spacing=6)
 
-        # draw heart progressively after text phase
+            draw.multiline_text(((W - w) / 2, (H / 2 - 40) - h / 2),
+                                visible, font=font_large, fill=TEXT_COLOR, align="center", spacing=6)
+        else:
+            # keep text visible
+            full_text = "Happy Birthday\nBestie ❤ 🎂"
+            bbox = draw.multiline_textbbox((0, 0), full_text, font=font_large, spacing=6)
+            w = bbox[2] - bbox[0]
+            h = bbox[3] - bbox[1]
+            draw.multiline_text(((W - w) / 2, (H / 2 - 40) - h / 2),
+                                full_text, font=font_large, fill=TEXT_COLOR, align="center", spacing=6)
+
+        # draw heart progressively after text finished
         if f >= text_frames:
             frames_since_text = f - text_frames
             points_to_draw = min(total_heart_points, (frames_since_text + 1) * HEART_PER_FRAME)
@@ -154,8 +165,9 @@ def build_frames(frames=FRAMES, show_preview_only=False):
     return frames_list
 
 # ---------- Page UI ----------
-st.write("# Birthday Heart — GIF generator")
+st.write("# Birthday Heart — Streamlit GIF generator")
 
+# this is the uploaded file path you provided earlier in the session; kept here for convenience
 uploaded_path = "/mnt/data/Screen Recording 2025-11-19 185503.mp4"
 if use_uploaded_video:
     st.info(f"Attempting to show uploaded file (if available): {uploaded_path}")
@@ -169,7 +181,7 @@ if st.button("Generate animation"):
         st.image(buf.getvalue(), caption="Happy Birthday Animation", use_column_width=True)
         st.download_button("Download GIF", data=buf.getvalue(), file_name="birthday_heart.gif", mime="image/gif")
 
-# small preview auto
+# show preview if requested
 if show_preview:
     preview_frames = build_frames(frames=6, show_preview_only=True)
     bufp = io.BytesIO()
@@ -177,17 +189,13 @@ if show_preview:
     bufp.seek(0)
     st.image(bufp.getvalue(), caption="Preview", use_column_width=True)
 
-# show uploaded video if requested and available on the instance
+# show uploaded video if requested and available on instance
 if use_uploaded_video:
     try:
         with open(uploaded_path, "rb") as fh:
             st.video(fh.read())
     except Exception:
-        st.info("Uploaded file not found at the path; if you want it displayed in production, place it in your repo's assets and update the path in the code.")
+        st.info("Uploaded file not found at the path; for persistent deployment add the file into your repo's assets and update the path.")
 
-st.write("----")
-st.markdown("Tip: reduce **Frames** or **Image size** in the code for faster generation on Streamlit Cloud.")
-
-
-
-
+st.write("---")
+st.markdown("Tip: reduce **Frames** in the sidebar for faster generation on Streamlit Cloud.")
