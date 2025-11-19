@@ -80,56 +80,53 @@ except Exception:
     font_small = ImageFont.load_default()
 
 # ---------- Frame renderer ----------
-def build_frames(frames=FRAMES, show_preview_only=False):
-    # precompute heart points (matching your original paramization)
+def build_frames_exact_turtle(frames=FRAMES, show_preview_only=False):
+    # EXACT turtle-style heart coordinates (k = i integers)
     heart_coords = []
-    for i in range(HEART_STEPS):
+    for i in range(400):                # HEART_STEPS fixed to 400 to match your code
         k = i
-        x = hearta(k) * 20
+        x = hearta(k) * 20             # exactly same scale as your turtle code
         y = heartb(k) * 20
         px = int(W / 2 + x)
-        py = int(H / 2 - y)
+        py = int(H / 2 - y)            # invert y for Pillow coordinate system
         heart_coords.append((px, py))
 
     text_frames = max(6, int(frames * 0.12))
-    total_heart_points = HEART_STEPS
+    total_heart_points = len(heart_coords)
     points_drawn = 0
 
     frames_list = []
+    # We'll draw exactly one heart param-step per frame (to match turtle)
     for f in range(frames):
         im = Image.new("RGB", (W, H), BG_COLOR)
         draw = ImageDraw.Draw(im)
 
-        # draw balloons
+        # 1) draw background (balloons & glitters) FIRST so heart is on top
         for b in balloons:
             bx, by = int(b.x), int(b.y)
             r = b.size
             draw.ellipse([bx - r, by - r, bx + r, by + r], fill=b.color)
             draw.line([(bx, by + r), (bx, by + r + 28)], fill=(220, 220, 220))
 
-        # draw glitters (twinkling)
         for gx, gy, sp, seed in glitters:
             v = (math.sin(f * sp + seed) + 1) / 2
             size = 1 + 3 * v
             brightness = int(180 + 75 * v)
-            draw.ellipse([gx - size, gy - size, gx + size, gy + size], fill=(brightness, brightness, brightness))
+            draw.ellipse([gx - size, gy - size, gx + size, gy + size],
+                         fill=(brightness, brightness, brightness))
 
-        # typing text phase
+        # 2) typing text phase (same as before)
         if f < text_frames:
             full_text = "Happy Birthday\nBestie ❤ 🎂"
             total_chars = len(full_text)
             visible_chars = int((f + 1) / text_frames * total_chars)
             visible = full_text[:visible_chars]
-
-            # compatible measurement using multiline_textbbox
             bbox = draw.multiline_textbbox((0, 0), visible, font=font_large, spacing=6)
             w = bbox[2] - bbox[0]
             h = bbox[3] - bbox[1]
-
             draw.multiline_text(((W - w) / 2, (H / 2 - 40) - h / 2),
                                 visible, font=font_large, fill=TEXT_COLOR, align="center", spacing=6)
         else:
-            # keep text visible
             full_text = "Happy Birthday\nBestie ❤ 🎂"
             bbox = draw.multiline_textbbox((0, 0), full_text, font=font_large, spacing=6)
             w = bbox[2] - bbox[0]
@@ -137,20 +134,25 @@ def build_frames(frames=FRAMES, show_preview_only=False):
             draw.multiline_text(((W - w) / 2, (H / 2 - 40) - h / 2),
                                 full_text, font=font_large, fill=TEXT_COLOR, align="center", spacing=6)
 
-        # draw heart progressively after text finished
+        # 3) heart drawing: draw exactly one new heart point per frame (like your turtle loop)
         if f >= text_frames:
+            # how many points have been drawn so far
             frames_since_text = f - text_frames
-            points_to_draw = min(total_heart_points, (frames_since_text + 1) * HEART_PER_FRAME)
+            # draw points up to frames_since_text (1 per frame)
+            points_to_draw = min(total_heart_points, frames_since_text + 1)
+            # draw in order 0..points_to_draw-1, matching goto sequence
             for p in range(points_to_draw):
                 px, py = heart_coords[p]
-                draw.ellipse([px - 3, py - 3, px + 3, py + 3], fill=HEART_COLOR)
+                # draw small dot — adjust radius to match your turtle's dot() look
+                r = 2   # radius in pixels (tweak to match exact appearance)
+                draw.ellipse([px - r, py - r, px + r, py + r], fill=HEART_COLOR)
             points_drawn = points_to_draw
 
-        # advance balloons
+        # 4) step balloons for next frame (so they move slowly)
         for b in balloons:
             b.step()
 
-        # occasional sparkle near heart
+        # 5) occasional sparkle near latest heart point
         if points_drawn > 0 and random.random() > 0.96:
             px, py = heart_coords[min(points_drawn - 1, total_heart_points - 1)]
             sx = random.randint(-12, 12)
@@ -158,11 +160,11 @@ def build_frames(frames=FRAMES, show_preview_only=False):
             draw.ellipse([px + sx - 6, py + sy - 6, px + sx + 6, py + sy + 6], fill=(255, 220, 80))
 
         frames_list.append(im.convert("P"))
-
         if show_preview_only:
             break
 
     return frames_list
+
 
 # ---------- Page UI ----------
 st.write("# Birthday Heart — Streamlit GIF generator")
@@ -199,3 +201,4 @@ if use_uploaded_video:
 
 st.write("---")
 st.markdown("Tip: reduce **Frames** in the sidebar for faster generation on Streamlit Cloud.")
+
