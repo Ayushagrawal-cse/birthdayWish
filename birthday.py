@@ -1,5 +1,3 @@
-# streamlit_app.py
-# streamlit_app.py
 import streamlit as st
 import math
 import random
@@ -7,26 +5,26 @@ import io
 import time
 from PIL import Image, ImageDraw, ImageFont
 
-st.set_page_config(layout="centered", page_title="Birthday Heart Animation (Streamlit)")
+st.set_page_config(layout="centered", page_title="Birthday Heart Animation")
 
-# ---------- Config / defaults ----------
+# ---------- Default Parameters (tweak for performance) ----------
 W, H = 900, 700
-DEFAULT_FRAMES = 140
-HEART_STEPS = 400
-DEFAULT_HEART_PER_FRAME = 3
+DEFAULT_FRAMES = 140          # total frames of GIF (smaller -> faster generation)
+HEART_STEPS = 400             # keeps the same paramization you used
+DEFAULT_HEART_PER_FRAME = 3   # how many heart steps to draw per frame
 BG_COLOR = (0, 0, 0)
 TEXT_COLOR = (255, 255, 255)
 HEART_COLOR = (255, 40, 40)
-GIF_DURATION = 40  # ms per frame
+GIF_DURATION = 40             # ms per frame
 
-# ---------- Heart math (same as your turtle functions) ----------
+# ---------- Heart parametric functions (exact math you used) ----------
 def hearta(k):
     return 15 * math.sin(k) ** 3
 
 def heartb(k):
     return 12 * math.cos(k) - 5 * math.cos(2 * k) - 2 * math.cos(3 * k) - math.cos(4 * k)
 
-# ---------- Sidebar controls ----------
+# ---------- Sidebar UI ----------
 st.sidebar.header("Animation settings")
 frames_input = st.sidebar.slider("Frames (smaller = faster)", 40, 300, DEFAULT_FRAMES)
 heart_per_frame = st.sidebar.slider("Heart points per frame", 1, 8, DEFAULT_HEART_PER_FRAME)
@@ -36,7 +34,7 @@ use_uploaded_video = st.sidebar.checkbox("Show uploaded screen recording (if ava
 FRAMES = frames_input
 HEART_PER_FRAME = heart_per_frame
 
-# ---------- Prepare balloons & glitters ----------
+# ---------- Prepare balloons and glitters ----------
 NUM_BALLOONS = 8
 NUM_GLITTERS = 60
 
@@ -45,7 +43,6 @@ class Balloon:
         self.x = random.randint(50, W - 50)
         self.y = random.randint(H // 2 - 50, H - 40)
         self.size = random.randint(14, 28)
-        # pick RGB tuples (same palette as earlier)
         self.color = random.choice([
             (255, 107, 107),  # #FF6B6B
             (255, 217, 61),   # #FFD93D
@@ -79,43 +76,41 @@ except Exception:
     font_large = ImageFont.load_default()
     font_small = ImageFont.load_default()
 
-# ---------- Frame renderer ----------
-def build_frames_exact_turtle(frames=FRAMES, show_preview_only=False):
-    # EXACT turtle-style heart coordinates (k = i integers)
+# ---------- Frame builder ----------
+def build_frames(frames=FRAMES, show_preview_only=False):
     heart_coords = []
-    for i in range(400):                # HEART_STEPS fixed to 400 to match your code
+    for i in range(HEART_STEPS):
         k = i
-        x = hearta(k) * 20             # exactly same scale as your turtle code
+        x = hearta(k) * 20
         y = heartb(k) * 20
         px = int(W / 2 + x)
-        py = int(H / 2 - y)            # invert y for Pillow coordinate system
+        py = int(H / 2 - y)
         heart_coords.append((px, py))
 
     text_frames = max(6, int(frames * 0.12))
-    total_heart_points = len(heart_coords)
+    total_heart_points = HEART_STEPS
     points_drawn = 0
 
     frames_list = []
-    # We'll draw exactly one heart param-step per frame (to match turtle)
     for f in range(frames):
         im = Image.new("RGB", (W, H), BG_COLOR)
         draw = ImageDraw.Draw(im)
 
-        # 1) draw background (balloons & glitters) FIRST so heart is on top
+        # draw balloons (background)
         for b in balloons:
             bx, by = int(b.x), int(b.y)
             r = b.size
             draw.ellipse([bx - r, by - r, bx + r, by + r], fill=b.color)
             draw.line([(bx, by + r), (bx, by + r + 28)], fill=(220, 220, 220))
 
+        # draw glitters (twinkling)
         for gx, gy, sp, seed in glitters:
             v = (math.sin(f * sp + seed) + 1) / 2
             size = 1 + 3 * v
             brightness = int(180 + 75 * v)
-            draw.ellipse([gx - size, gy - size, gx + size, gy + size],
-                         fill=(brightness, brightness, brightness))
+            draw.ellipse([gx - size, gy - size, gx + size, gy + size], fill=(brightness, brightness, brightness))
 
-        # 2) typing text phase (same as before)
+        # typing text phase
         if f < text_frames:
             full_text = "Happy Birthday\nBestie ❤ 🎂"
             total_chars = len(full_text)
@@ -124,35 +119,26 @@ def build_frames_exact_turtle(frames=FRAMES, show_preview_only=False):
             bbox = draw.multiline_textbbox((0, 0), visible, font=font_large, spacing=6)
             w = bbox[2] - bbox[0]
             h = bbox[3] - bbox[1]
-            draw.multiline_text(((W - w) / 2, (H / 2 - 40) - h / 2),
-                                visible, font=font_large, fill=TEXT_COLOR, align="center", spacing=6)
+            draw.multiline_text(((W - w) / 2, (H / 2 - 40) - h / 2), visible,
+                                font=font_large, fill=TEXT_COLOR, align="center", spacing=6)
         else:
-            full_text = "Happy Birthday\nBestie ❤ 🎂"
-            bbox = draw.multiline_textbbox((0, 0), full_text, font=font_large, spacing=6)
-            w = bbox[2] - bbox[0]
-            h = bbox[3] - bbox[1]
-            draw.multiline_text(((W - w) / 2, (H / 2 - 40) - h / 2),
-                                full_text, font=font_large, fill=TEXT_COLOR, align="center", spacing=6)
+            draw.multiline_text(((W / 2) - 200, (H / 2 - 40) - 10), "Happy Birthday\nBestie ❤ 🎂",
+                                font=font_large, fill=TEXT_COLOR, align="center", spacing=6)
 
-        # 3) heart drawing: draw exactly one new heart point per frame (like your turtle loop)
+        # draw heart progressively after text phase
         if f >= text_frames:
-            # how many points have been drawn so far
             frames_since_text = f - text_frames
-            # draw points up to frames_since_text (1 per frame)
-            points_to_draw = min(total_heart_points, frames_since_text + 1)
-            # draw in order 0..points_to_draw-1, matching goto sequence
+            points_to_draw = min(total_heart_points, (frames_since_text + 1) * HEART_PER_FRAME)
             for p in range(points_to_draw):
                 px, py = heart_coords[p]
-                # draw small dot — adjust radius to match your turtle's dot() look
-                r = 2   # radius in pixels (tweak to match exact appearance)
-                draw.ellipse([px - r, py - r, px + r, py + r], fill=HEART_COLOR)
+                draw.ellipse([px - 3, py - 3, px + 3, py + 3], fill=HEART_COLOR)
             points_drawn = points_to_draw
 
-        # 4) step balloons for next frame (so they move slowly)
+        # advance balloons
         for b in balloons:
             b.step()
 
-        # 5) occasional sparkle near latest heart point
+        # occasional sparkle near heart
         if points_drawn > 0 and random.random() > 0.96:
             px, py = heart_coords[min(points_drawn - 1, total_heart_points - 1)]
             sx = random.randint(-12, 12)
@@ -160,16 +146,15 @@ def build_frames_exact_turtle(frames=FRAMES, show_preview_only=False):
             draw.ellipse([px + sx - 6, py + sy - 6, px + sx + 6, py + sy + 6], fill=(255, 220, 80))
 
         frames_list.append(im.convert("P"))
+
         if show_preview_only:
             break
 
     return frames_list
 
-
 # ---------- Page UI ----------
-st.write("# Birthday Heart — Streamlit GIF generator")
+st.write("# Birthday Heart — GIF generator")
 
-# this is the uploaded file path you provided earlier in the session; kept here for convenience
 uploaded_path = "/mnt/data/Screen Recording 2025-11-19 185503.mp4"
 if use_uploaded_video:
     st.info(f"Attempting to show uploaded file (if available): {uploaded_path}")
@@ -183,7 +168,7 @@ if st.button("Generate animation"):
         st.image(buf.getvalue(), caption="Happy Birthday Animation", use_column_width=True)
         st.download_button("Download GIF", data=buf.getvalue(), file_name="birthday_heart.gif", mime="image/gif")
 
-# show preview if requested
+# small preview auto
 if show_preview:
     preview_frames = build_frames(frames=6, show_preview_only=True)
     bufp = io.BytesIO()
@@ -191,14 +176,15 @@ if show_preview:
     bufp.seek(0)
     st.image(bufp.getvalue(), caption="Preview", use_column_width=True)
 
-# show uploaded video if requested and available on instance
+# show uploaded video if requested and available on the instance
 if use_uploaded_video:
     try:
         with open(uploaded_path, "rb") as fh:
             st.video(fh.read())
     except Exception:
-        st.info("Uploaded file not found at the path; for persistent deployment add the file into your repo's assets and update the path.")
+        st.info("Uploaded file not found at the path; if you want it displayed in production, place it in your repo's assets and update the path in the code.")
 
-st.write("---")
-st.markdown("Tip: reduce **Frames** in the sidebar for faster generation on Streamlit Cloud.")
+st.write("----")
+st.markdown("Tip: reduce **Frames** or **Image size** in the code for faster generation on Streamlit Cloud.")
+
 
