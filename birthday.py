@@ -117,7 +117,9 @@ def build_frames(frames=FRAMES, show_preview_only=False):
             total_chars = len(full_text)
             visible_chars = int((f + 1) / text_frames * total_chars)
             visible = full_text[:visible_chars]
-            w, h = draw.multiline_textsize(visible, font=font_large, spacing=6)
+            bbox = draw.multiline_textbbox((0, 0), visible, font=font_large, spacing=6)
+            w = bbox[2] - bbox[0]
+            h = bbox[3] - bbox[1]
             draw.multiline_text(((W - w) / 2, (H / 2 - 40) - h / 2), visible,
                                 font=font_large, fill=TEXT_COLOR, align="center", spacing=6)
         else:
@@ -185,6 +187,7 @@ if use_uploaded_video:
 
 st.write("----")
 st.markdown("Tip: reduce **Frames** or **Image size** in the code for faster generation on Streamlit Cloud.")
+
 
 
 
