@@ -112,7 +112,7 @@ def build_frames(frames=FRAMES, show_preview_only=False):
 
         # typing text phase
         if f < text_frames:
-            full_text = "Happy Birthday\nBestie ❤ 🎂"
+            full_text = "Happy Belated Birthday\nBestie ❤ 🎂"
             total_chars = len(full_text)
             visible_chars = int((f + 1) / text_frames * total_chars)
             visible = full_text[:visible_chars]
@@ -122,7 +122,7 @@ def build_frames(frames=FRAMES, show_preview_only=False):
             draw.multiline_text(((W - w) / 2, (H / 2 - 40) - h / 2), visible,
                                 font=font_large, fill=TEXT_COLOR, align="center", spacing=6)
         else:
-            draw.multiline_text(((W / 2) - 200, (H / 2 - 40) - 10), "Happy Birthday\nBestie ❤ 🎂",
+            draw.multiline_text(((W / 2) - 200, (H / 2 - 40) - 10), "Happy Belated Birthday\nBestie ❤ 🎂",
                                 font=font_large, fill=TEXT_COLOR, align="center", spacing=6)
 
         # draw heart progressively after text phase
@@ -186,5 +186,6 @@ if use_uploaded_video:
 
 st.write("----")
 st.markdown("Tip: reduce **Frames** or **Image size** in the code for faster generation on Streamlit Cloud.")
+
 
 
